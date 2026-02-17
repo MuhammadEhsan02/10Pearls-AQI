@@ -23,25 +23,6 @@ Unlike static analysis tools, this system features a **self-correcting Machine L
 
 ---
 
-## System Architecture
-
-The system follows a linear pipeline from data acquisition to user presentation:
-
-```mermaid
-graph TD
-    A[Open-Meteo API] -->|Hourly Weather Data| B(Data Ingestion Engine)
-    B -->|Raw Data| C{MongoDB Atlas Feature Store}
-    C -->|Historical Data| D(Preprocessing & Cleaning)
-    D -->|Feature Engineering| E(Model Training Pipeline)
-    E -->|Train & Evaluate| F[Auto-Select Best Model]
-    F -->|Save Artifacts| G[Model Registry]
-    G -->|Load Inference| H[Streamlit Dashboard]
-    H -->|Visuals & Insights| I(End User)
-
-```
-
----
-
 ## Project Structure
 
 The repository is organized into distinct modules to ensure scalability and ease of navigation:
@@ -99,7 +80,7 @@ The system evaluates models dynamically during every training cycle. Below are t
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/MuhammadEhsan02/10Pearls-AQI.git](https://github.com/MuhammadEhsan02/10Pearls-AQI.git)
+git clone https://github.com/MuhammadEhsan02/10Pearls-AQI.git
 cd 10Pearls-AQI
 
 ```
@@ -150,5 +131,3 @@ streamlit run app/dashboard.py
 ## License
 
 This project is open-source and available under the MIT License.
-
-```
