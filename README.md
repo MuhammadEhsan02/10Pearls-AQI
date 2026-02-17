@@ -1,85 +1,154 @@
-# 🏙️ Karachi Air Quality Intelligence (AQI) System
+# Karachi Air Quality Intelligence (AQI) System
 
-> **Advanced Machine Learning Pipeline for Real-Time Air Quality Forecasting**  
-> *Developed by Karan Kumar | Top-Tier Performance (RMSE: 1.75)*
+> **Advanced Machine Learning Pipeline for Real-Time Air Quality Forecasting**
+> *Developed by Muhammad Ehsan | Production-Grade Architecture | Automated CI/CD*
 
-**[Live Dashboard 🚀](https://aqi-predictor-karachi-3xndd8h5cdhoj79hz2fikz.streamlit.app/)**
-
-## 🚀 Project Overview
-The **Karachi AQI Prediction System** is an end-to-end automated platform that forecasts the Air Quality Index (AQI) for Karachi for the next 72 hours.
-Built with a focus on precision and scalability, this project outperforms baseline models by leveraging advanced feature engineering and an ensemble of **XGBoost** and **Random Forest** algorithms.
-
-The system is fully automated with **GitHub Actions** for CI/CD, uses **MongoDB Atlas** as a scalable Feature Store, and presents insights via a professional **Streamlit** dashboard.
+**[View Live Dashboard](https://your-aqi-dashboard-url.streamlit.app/)**
 
 ---
 
-## 🏆 Key Achievements
--   **State-of-the-Art Accuracy**: Achieved an **RMSE of 1.75** and **R² of 0.99**, significantly outperforming standard reference models.
--   **Full Automation**: Zero-touch operation. Data is fetched hourly, and models are retrained daily automatically.
--   **Robust Architecture**: Implements retry logic, DNS resilience, and efficient caching strategies.
--   **Interactive Dashboard**: A dark-themed, professional UI featuring real-time gauges and interactive forecasts.
+## Project Overview
+
+The **Karachi AQI Prediction System** is an end-to-end, automated machine learning platform designed to forecast the Air Quality Index (AQI) for Karachi, Pakistan, for the next 72 hours.
+
+Unlike static analysis tools, this system features a **self-correcting Machine Learning pipeline** that automatically fetches new data, retrains multiple algorithms (Linear Regression, XGBoost, Random Forest), and dynamically promotes the best-performing model to production without human intervention. The system is built on a modular, scalable architecture suitable for cloud deployment.
+
+## Key Features
+
+* **Adaptive Machine Learning**: The system trains an ensemble of models daily and automatically selects the one with the lowest Root Mean Square Error (RMSE) for inference.
+* **Fully Automated Pipeline**: GitHub Actions manage hourly data ingestion and daily model retraining, ensuring the forecast is always based on the latest atmospheric conditions.
+* **Modular Production Architecture**: The codebase follows strict separation of concerns, dividing the application into frontend, backend logic, and model artifacts for maintainability.
+* **Cloud-Native Data Store**: Utilizes MongoDB Atlas as a scalable Feature Store to manage historical weather and pollution data.
+* **Interactive Analytics Dashboard**: A professional Streamlit interface providing real-time gauges, 72-hour trend analysis, and model performance metrics.
 
 ---
 
-## 🧩 System Architecture
+## System Architecture
+
+The system follows a linear pipeline from data acquisition to user presentation:
 
 ```mermaid
 graph TD
-    A[Open-Meteo API] -->|Hourly Data| B(Data Ingestion Engine)
-    B -->|Clean & Process| C{MongoDB Atlas Feature Store}
-    C -->|Feature History| D[Model Training Pipeline]
-    D -->|XGBoost Regressor| E[Saved Model Artifacts]
-    E -->|Inference| F[Streamlit Dashboard]
-    F -->|Visuals| G(End User)
+    A[Open-Meteo API] -->|Hourly Weather Data| B(Data Ingestion Engine)
+    B -->|Raw Data| C{MongoDB Atlas Feature Store}
+    C -->|Historical Data| D(Preprocessing & Cleaning)
+    D -->|Feature Engineering| E(Model Training Pipeline)
+    E -->|Train & Evaluate| F[Auto-Select Best Model]
+    F -->|Save Artifacts| G[Model Registry]
+    G -->|Load Inference| H[Streamlit Dashboard]
+    H -->|Visuals & Insights| I(End User)
+
 ```
 
-## 🛠️ Technology Stack
--   **Language**: Python 3.9+
--   **ML Core**: Scikit-Learn, XGBoost, Pandas, NumPy
--   **Data Store**: MongoDB Atlas (NoSQL Cloud Database)
--   **Visualization**: Streamlit, Plotly Express
--   **Automation**: GitHub Actions (CI/CD)
--   **APIs**: Open-Meteo (Historical & Live Weather Data)
+---
+
+## Project Structure
+
+The repository is organized into distinct modules to ensure scalability and ease of navigation:
+
+```text
+karachi-aqi-intelligence/
+├── app/                    # Frontend Application
+│   └── dashboard.py        # Main Streamlit Dashboard Interface
+│
+├── src/                    # Backend Logic & Pipelines
+│   ├── data_ingestion.py   # API Connectivity & Data Fetching
+│   ├── database.py         # MongoDB Connection Manager
+│   ├── preprocessing.py    # Data Cleaning & Outlier Removal
+│   ├── feature_engineering.py # Lag Generation & Rolling Averages
+│   └── modeling.py         # Model Training & Inference Logic
+│
+├── models/                 # Model Artifacts
+│   ├── model.pkl           # The active, best-performing model
+│   └── features.pkl        # Serialized feature list for consistency
+│
+├── docs/                   # Documentation & Reports
+│   └── Project_Report.pdf  # Technical analysis
+│
+├── notebooks/              # Research & Experiments
+│   └── 01_eda_analysis.ipynb
+│
+├── .github/workflows/      # CI/CD Automation
+│   ├── daily_retrain.yml   # Scheduled Model Retraining
+│   └── hourly_data_update.yml # Scheduled Data Fetching
+│
+├── Dockerfile              # Containerization Configuration
+├── requirements.txt        # Python Dependencies
+└── .env                    # Environment Variables (Excluded from Git)
+
+```
 
 ---
 
-## 📊 Model Performance
-| Metric | Our Model (XGBoost) | Reference Baseline | Improvement |
-| :--- | :--- | :--- | :--- |
-| **RMSE** (Error) | **1.75** | ~6.59 | **~3.7x Better** |
-| **R² Score** (Accuracy) | **0.99** | ~0.93 | **High Precision** |
-| **Inference Speed** | **<50ms** | ~200ms | **4x Faster** |
+## Model Performance
 
-> *Note: Lower RMSE indicates better performance.*
+The system evaluates models dynamically during every training cycle. Below are the performance metrics from the latest deployment:
 
----
+| Model Type | RMSE (Error) | R² Score | Status |
+| --- | --- | --- | --- |
+| **Linear Regression** | **3.10** | **0.96** | **Active** |
+| XGBoost | 3.56 | 0.95 | Candidate |
+| Random Forest | 3.78 | 0.95 | Candidate |
 
-## ⚡ Installation & Usage
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/karan-kumar/aqi-predictor-karachi.git
-    cd aqi-predictor-karachi
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Configure Environment**:
-    Create a `.env` file in the root directory:
-    ```env
-    MONGO_URI=your_mongodb_connection_string
-    DB_NAME=aqi_db
-    ```
-
-4.  **Run the Dashboard**:
-    ```bash
-    streamlit run app.py
-    ```
+*Note: Lower RMSE indicates higher prediction accuracy. The system automatically switches the active model if a candidate outperforms the current production model.*
 
 ---
 
-## 📜 License
+## Installation and Usage
+
+### 1. Clone the Repository
+
+```bash
+git clone [https://github.com/MuhammadEhsan02/10Pearls-AQI.git](https://github.com/MuhammadEhsan02/10Pearls-AQI.git)
+cd 10Pearls-AQI
+
+```
+
+### 2. Install Dependencies
+
+It is recommended to use a virtual environment.
+
+```bash
+pip install -r requirements.txt
+
+```
+
+### 3. Configure Environment
+
+Create a `.env` file in the root directory and add your MongoDB credentials:
+
+```env
+MONGO_URI=your_mongodb_connection_string
+DB_NAME=aqi_db
+
+```
+
+### 4. Run the Pipeline (Optional)
+
+To manually trigger the data pipeline and model training:
+
+```bash
+# Fetch the latest data
+python src/data_ingestion.py
+
+# Train and save the model
+python src/modeling.py
+
+```
+
+### 5. Launch the Dashboard
+
+Start the local development server:
+
+```bash
+streamlit run app/dashboard.py
+
+```
+
+---
+
+## License
+
 This project is open-source and available under the MIT License.
+
+```
