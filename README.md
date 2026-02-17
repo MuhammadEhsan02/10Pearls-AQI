@@ -3,7 +3,7 @@
 > **Advanced Machine Learning Pipeline for Real-Time Air Quality Forecasting**
 > *Developed by Muhammad Ehsan | Production-Grade Architecture | Automated CI/CD*
 
-**[View Live Dashboard](https://your-aqi-dashboard-url.streamlit.app/)**
+**[View Live Dashboard](https://10pearls-aqi.streamlit.app/)**
 
 ---
 
