@@ -1,6 +1,7 @@
 # Karachi Air Quality Intelligence (AQI) System
 
 > **Advanced Machine Learning Pipeline for Real-Time Air Quality Forecasting**
+
 > *Developed by Muhammad Ehsan | Production-Grade Architecture | Automated CI/CD*
 
 **[View Live Dashboard](https://10pearls-aqi.streamlit.app/)**
