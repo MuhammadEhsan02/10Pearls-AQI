@@ -1,5 +1,6 @@
 import sys
 import os
+from datetime import datetime # Added for date filtering
 
 # --- PATH FIX: Add Project Root to System Path ---
 # This allows 'python src/modeling.py' to find modules like 'src.database'
@@ -34,7 +35,18 @@ def train_and_evaluate():
         print("No data found in database. Run data_ingestion.py first.")
         return
 
-    print(f"Data fetched: {len(df)} records.")
+    print(f"Total data fetched: {len(df)} records.")
+
+    # --- FIX: Filter out future data ---
+    # We only want to train on history (observed data), not the forecast we just downloaded.
+    if 'date' in df.columns:
+        # Ensure date is datetime and remove timezone for comparison to system time
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
+        
+    # Filter: Keep only data before "Now"
+    df = df[df['date'] < datetime.now()]
+    print(f"Training on {len(df)} historical records (Future forecast removed).")
+    # -----------------------------------
     
     # Preprocess
     df = preprocess_data(df, is_training=True)
