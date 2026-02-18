@@ -8,9 +8,10 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import pytz
 
 # -----------------------------
-# 1. SETUP & PATHS (FIXED FOR NEW STRUCTURE)
+# 1. SETUP & PATHS
 # -----------------------------
 st.set_page_config(
     page_title="Karachi AQI Intelligence",
@@ -134,12 +135,11 @@ def load_model_resources(m_hash):
         # Determine model name dynamically
         model_name = type(model).__name__
         if model_name == 'XGBRegressor': model_name = "XGBoost"
-        if model_name == 'RandomForestRegressor': model_name = "Random Forest"
-        if model_name == 'LinearRegression': model_name = "Linear Regression"
+        elif model_name == 'RandomForestRegressor': model_name = "Random Forest"
+        elif model_name == 'LinearRegression': model_name = "Linear Regression"
             
         return model, features, model_name
     except Exception as e:
-        # print(f"Error loading model: {e}") # Debug only
         return None, None, "Unknown"
 
 @st.cache_data(ttl=300)
@@ -153,7 +153,7 @@ def load_data_from_mongo():
         return pd.DataFrame()
 
 # -----------------------------
-# 4. LOAD DATA & SIDEBAR
+# 4. LOAD DATA & LOGIC
 # -----------------------------
 df_all = load_data_from_mongo()
 
@@ -163,6 +163,7 @@ except:
     m_hash = 0
 model, features, active_model_name = load_model_resources(m_hash)
 
+# Sidebar
 with st.sidebar:
     st.markdown("## System Status")
     if not df_all.empty:
@@ -195,17 +196,34 @@ if df_all.empty:
     st.warning("Waiting for data... check database connection.")
     st.stop()
 
-# Prepare Data
-df_all['date'] = pd.to_datetime(df_all['date'])
+# --- TIMEZONE FIX ---
+# 1. Convert Data to Karachi Time
+if df_all['date'].dt.tz is None:
+    df_all['date'] = df_all['date'].dt.tz_localize('UTC')
+df_all['date'] = df_all['date'].dt.tz_convert('Asia/Karachi')
 df_all = df_all.sort_values('date')
-current_rec = df_all.iloc[-1]
+
+# 2. Get Current Karachi Time
+now_karachi = datetime.now(pytz.timezone('Asia/Karachi'))
+
+# 3. Find "Current" Record (Closest to Now, but not in the future)
+# We filter for data <= Now + 30 mins buffer
+past_data = df_all[df_all['date'] <= now_karachi + timedelta(minutes=30)]
+
+if not past_data.empty:
+    current_rec = past_data.iloc[-1]
+else:
+    # Fallback if database is empty/old
+    current_rec = df_all.iloc[0]
+
 current_aqi = int(current_rec.get('us_aqi', 0))
 cat_label, cat_color, cat_advice = get_aqi_details(current_aqi)
 
 # Generate Forecast
 forecast_df = pd.DataFrame()
 if model and features:
-    recent_data = df_all.tail(100).copy()
+    # Use the PAST data for prediction input, not the future forecast we might have fetched
+    recent_data = past_data.tail(100).copy()
     try:
         forecast_df = predict_next_72_hours(model, features, recent_data)
         forecast_df['display_date'] = forecast_df['date'].dt.strftime('%A, %d %b')
@@ -245,13 +263,14 @@ with c1:
     """, unsafe_allow_html=True)
 
 with c2:
+    val_pm25 = int(current_rec.get('pm2_5', 0))
     st.markdown(f"""
     <div class="card">
         <div class="card-title">Dominant Pollutant</div>
-        <div class="card-value">{int(current_rec.get('pm2_5', 0))}</div>
+        <div class="card-value">{val_pm25}</div>
         <div class="card-sub">µg/m³ (PM2.5)</div>
         <div style="margin-top:15px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px;">
-            <div style="width: {min(int(current_rec.get('pm2_5', 0)), 100)}%; height:100%; background: #38BDF8; border-radius:2px;"></div>
+            <div style="width: {min(val_pm25, 100)}%; height:100%; background: #38BDF8; border-radius:2px;"></div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -263,7 +282,7 @@ with c3:
     
     html_content = f"""
 <div class="card">
-<div class="card-title"> Model Performance Leaderboard</div>
+<div class="card-title">🏆 Model Performance Leaderboard</div>
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
 <span><b>{active_model_name}</b> (Active)</span>
 <span style="color:#22c55e; font-weight:bold;">RMSE: {active_rmse}</span>
@@ -327,17 +346,39 @@ with tab_forecast:
         st.markdown("### 72-Hour Trend")
         
         fig = go.Figure()
-        recent_hist = df_all.tail(48)
-        fig.add_trace(go.Scatter(x=recent_hist['date'], y=recent_hist['us_aqi'], mode='lines', name='Observed', line=dict(color='rgba(255,255,255,0.3)', width=2)))
-        fig.add_trace(go.Scatter(x=forecast_df['date'], y=forecast_df['predicted_aqi'], mode='lines+markers', name=f'Forecast ({active_model_name})', line=dict(color='#38BDF8', width=3), marker=dict(size=4)))
+        
+        # Plot only Past Data (History)
+        hist_plot = past_data.tail(48)
+        fig.add_trace(go.Scatter(
+            x=hist_plot['date'], y=hist_plot['us_aqi'],
+            mode='lines', name='Observed',
+            line=dict(color='rgba(255,255,255,0.3)', width=2)
+        ))
+        
+        # Plot Future Forecast
+        fig.add_trace(go.Scatter(
+            x=forecast_df['date'], y=forecast_df['predicted_aqi'],
+            mode='lines+markers', name=f'Forecast ({active_model_name})',
+            line=dict(color='#38BDF8', width=3),
+            marker=dict(size=4)
+        ))
         
         # Dynamic Zoom
-        all_values = pd.concat([recent_hist['us_aqi'], forecast_df['predicted_aqi']])
+        all_values = pd.concat([hist_plot['us_aqi'], forecast_df['predicted_aqi']])
         y_min = all_values.min()
         y_max = all_values.max()
         y_range = [y_min * 0.9, y_max * 1.1]
 
-        fig.update_layout(height=450, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(255,255,255,0.03)", margin=dict(l=0, r=0, t=30, b=0), legend=dict(orientation="h", y=1.02, x=1, xanchor="right"), hovermode="x unified", yaxis=dict(range=y_range))
+        fig.update_layout(
+            height=450,
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(255,255,255,0.03)",
+            margin=dict(l=0, r=0, t=30, b=0),
+            legend=dict(orientation="h", y=1.02, x=1, xanchor="right"),
+            hovermode="x unified",
+            yaxis=dict(range=y_range)
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 # --- TAB 2: MODEL COMPARISON ---
@@ -358,9 +399,28 @@ with tab_compare:
             'RMSE': [3.10, 3.56, 3.78]
         })
         
-        fig_comp = px.bar(model_data, x='RMSE', y='Model', orientation='h', text='RMSE', color='RMSE', color_continuous_scale=['#22c55e', '#f59e0b', '#ef4444'])
-        fig_comp.update_traces(texttemplate='%{text:.2f}', textposition='outside', textfont_size=14, textfont_color='white', width=0.35)
-        fig_comp.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), xaxis=dict(showgrid=False, visible=False), yaxis=dict(title=None), margin=dict(l=0, r=50, t=20, b=0), uniformtext_minsize=12, uniformtext_mode='hide')
+        fig_comp = px.bar(
+            model_data, x='RMSE', y='Model', orientation='h',
+            text='RMSE', color='RMSE',
+            color_continuous_scale=['#22c55e', '#f59e0b', '#ef4444']
+        )
+        fig_comp.update_traces(
+            texttemplate='%{text:.2f}', 
+            textposition='outside',
+            textfont_size=14,
+            textfont_color='white',
+            width=0.35
+        )
+        fig_comp.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='white'),
+            xaxis=dict(showgrid=False, visible=False), 
+            yaxis=dict(title=None),
+            margin=dict(l=0, r=50, t=20, b=0),
+            uniformtext_minsize=12, 
+            uniformtext_mode='hide'
+        )
         st.plotly_chart(fig_comp, use_container_width=True)
         
     with c2:
@@ -394,4 +454,10 @@ with tab_data:
             """, unsafe_allow_html=True)
             
             csv = export_df.to_csv(index=False).encode('utf-8')
-            st.download_button(" Download CSV", data=csv, file_name="karachi_aqi_forecast.csv", mime="text/csv", use_container_width=True)
+            st.download_button(
+                " Download CSV",
+                data=csv,
+                file_name="karachi_aqi_forecast.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
