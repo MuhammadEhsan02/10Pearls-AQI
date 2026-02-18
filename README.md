@@ -48,7 +48,8 @@ karachi-aqi-intelligence/
 │   └── Project_Report.pdf  # Technical analysis
 │
 ├── notebooks/              # Research & Experiments
-│   └── 01_eda_analysis.ipynb
+│   └── EDA.ipynb
+│   └── Shap_analysis.ipynb
 │
 ├── .github/workflows/      # CI/CD Automation
 │   ├── daily_retrain.yml   # Scheduled Model Retraining
