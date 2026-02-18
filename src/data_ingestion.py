@@ -23,8 +23,9 @@ def fetch_historical_data():
     latitude = 24.8607
     longitude = 67.0011
     
-    # FIX: Fetch 7 days into the future to ensure we have "Live" and "Forecast" data
-    end_date = datetime.now().date() + timedelta(days=7)
+    # FIX: Changed from 7 days to 4 days to satisfy API limits
+    # The API limit is usually 5-6 days, so 4 is safe.
+    end_date = datetime.now().date() + timedelta(days=4)
     start_date = datetime.now().date() - timedelta(days=6*30)
 
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -67,3 +68,4 @@ if __name__ == "__main__":
             print("✅ Data ingested into MongoDB.")
     except Exception as e:
         print(f"❌ Error: {e}")
+        
