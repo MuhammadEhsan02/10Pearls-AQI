@@ -15,28 +15,24 @@ import pytz
 # -----------------------------
 st.set_page_config(
     page_title="Karachi AQI Intelligence",
-    page_icon="🌫️",
+    page_icon="🌆",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Get the path to the project root (one level up from 'app')
+# Get the path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, '..'))
 
-# Add project root to system path so we can import 'src'
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-# Import from src
 from src.database import AQIDatabase
 from src.modeling import predict_next_72_hours
 
-# Define Model Paths
 MODEL_PATH = os.path.join(project_root, 'models', 'model.pkl')
 FEATURES_PATH = os.path.join(project_root, 'models', 'features.pkl')
 
-# Try importing autorefresh
 try:
     from streamlit_autorefresh import st_autorefresh
 except ImportError:
@@ -47,22 +43,16 @@ except ImportError:
 # -----------------------------
 st.markdown("""
 <style>
-    /* MAIN GRADIENT BACKGROUND */
     .stApp {
         background: radial-gradient(circle at 12% 8%, rgba(56,189,248,0.18), transparent 40%),
                     radial-gradient(circle at 88% 18%, rgba(99,102,241,0.14), transparent 42%),
-                    radial-gradient(circle at 55% 92%, rgba(14,165,233,0.10), transparent 48%),
                     linear-gradient(180deg, #050913 0%, #071125 55%, #050913 100%);
         color: #fff;
     }
-    
-    /* SIDEBAR */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
         border-right: 1px solid rgba(255,255,255,0.10);
     }
-    
-    /* HERO SECTION */
     .hero {
         border-radius: 18px; 
         padding: 24px;
@@ -73,42 +63,23 @@ st.markdown("""
     }
     .hero h1 { margin: 0; font-size: 2.2rem; color: #fff; font-weight: 700; }
     .hero p { margin: 5px 0 0 0; opacity: 0.9; font-size: 1.1rem; }
-
-    /* CARDS */
     .card {
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 16px;
         padding: 20px;
         background: rgba(255,255,255,0.045);
-        box-shadow: 0 10px 28px rgba(0,0,0,0.38);
         height: 100%;
         display: flex;
         flex-direction: column;
         justify-content: center;
     }
-    .card-title { font-size: 0.9rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .card-title { font-size: 0.9rem; opacity: 0.85; text-transform: uppercase; margin-bottom: 8px; }
     .card-value { font-size: 2.2rem; font-weight: 800; color: #ffffff; line-height: 1.1; }
     .card-sub { font-size: 0.9rem; opacity: 0.8; margin-top: 8px; }
-
-    /* PILLS */
     .pill {
         display: inline-block; padding: 4px 12px; border-radius: 20px;
         font-weight: 700; font-size: 0.85rem;
         border: 1px solid rgba(255,255,255,0.2);
-    }
-    
-    /* TABS */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: rgba(255,255,255,0.05);
-        border-radius: 8px 8px 0 0;
-        color: #ccc;
-        padding: 10px 20px;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(56,189,248,0.2);
-        color: white;
-        border-bottom: 2px solid #38BDF8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -117,12 +88,12 @@ st.markdown("""
 # 3. HELPER FUNCTIONS
 # -----------------------------
 def get_aqi_details(aqi):
-    if aqi <= 50: return "Good", "#22c55e", "Air is clean. Enjoy outdoors."
-    elif aqi <= 100: return "Moderate", "#eab308", "Acceptable. Sensitive groups take care."
-    elif aqi <= 150: return "Unhealthy (Sens.)", "#f97316", "Sensitive groups: wear masks."
-    elif aqi <= 200: return "Unhealthy", "#ef4444", "Avoid prolonged outdoor exertion."
-    elif aqi <= 300: return "Very Unhealthy", "#a855f7", "Health alert! Stay indoors."
-    else: return "Hazardous", "#78716c", "Emergency. Do not go outside."
+    if aqi <= 50: return "Good", "#22c55e", "Air is clean."
+    elif aqi <= 100: return "Moderate", "#eab308", "Acceptable quality."
+    elif aqi <= 150: return "Unhealthy (Sens.)", "#f97316", "Sensitive groups beware."
+    elif aqi <= 200: return "Unhealthy", "#ef4444", "Avoid outdoor exertion."
+    elif aqi <= 300: return "Very Unhealthy", "#a855f7", "Health alert."
+    else: return "Hazardous", "#78716c", "Emergency."
 
 @st.cache_resource
 def load_model_resources(m_hash):
@@ -132,14 +103,13 @@ def load_model_resources(m_hash):
         with open(FEATURES_PATH, 'rb') as f:
             features = pickle.load(f)
         
-        # Determine model name dynamically
         model_name = type(model).__name__
         if model_name == 'XGBRegressor': model_name = "XGBoost"
         elif model_name == 'RandomForestRegressor': model_name = "Random Forest"
         elif model_name == 'LinearRegression': model_name = "Linear Regression"
             
         return model, features, model_name
-    except Exception as e:
+    except:
         return None, None, "Unknown"
 
 @st.cache_data(ttl=300)
@@ -206,14 +176,13 @@ df_all = df_all.sort_values('date')
 # 2. Get Current Karachi Time
 now_karachi = datetime.now(pytz.timezone('Asia/Karachi'))
 
-# 3. Find "Current" Record (Closest to Now, but not in the future)
-# We filter for data <= Now + 30 mins buffer
-past_data = df_all[df_all['date'] <= now_karachi + timedelta(minutes=30)]
+# 3. Find "Current" Record
+# Strict logic: Data must be <= current time (No buffer)
+past_data = df_all[df_all['date'] <= now_karachi]
 
 if not past_data.empty:
     current_rec = past_data.iloc[-1]
 else:
-    # Fallback if database is empty/old
     current_rec = df_all.iloc[0]
 
 current_aqi = int(current_rec.get('us_aqi', 0))
@@ -222,7 +191,7 @@ cat_label, cat_color, cat_advice = get_aqi_details(current_aqi)
 # Generate Forecast
 forecast_df = pd.DataFrame()
 if model and features:
-    # Use the PAST data for prediction input, not the future forecast we might have fetched
+    # Use the PAST data for prediction input
     recent_data = past_data.tail(100).copy()
     try:
         forecast_df = predict_next_72_hours(model, features, recent_data)
@@ -318,22 +287,29 @@ tab_forecast, tab_compare, tab_data = st.tabs(["Forecast & Trend", "Model Compar
 # --- TAB 1: FORECAST ---
 with tab_forecast:
     if not forecast_df.empty:
-        st.markdown("### 3-Day Outlook")
+        st.markdown("### 3-Day Outlook (Tomorrow Onwards)")
         
         daily_avg = forecast_df.groupby('date_only').agg({
             'predicted_aqi': 'mean',
             'display_date': 'first'
         }).reset_index()
         
+        # FIX: Filter out "Today" so the forecast starts from Tomorrow
+        daily_avg = daily_avg[daily_avg['date_only'] > now_karachi.date()]
+        
+        # Ensure sorting matches calendar days
         daily_avg = daily_avg.sort_values('date_only').head(3)
         
         cols = st.columns(3)
-        for idx, row in daily_avg.iterrows():
+        
+        # FIX: Use enumerate to guarantee sequence (0->Left, 1->Middle, 2->Right)
+        # ignoring the dataframe's internal index which might be out of order.
+        for i, (index, row) in enumerate(daily_avg.iterrows()):
             d_name = row['display_date']
             d_aqi = int(round(row['predicted_aqi']))
             _, d_col, _ = get_aqi_details(d_aqi)
             
-            with cols[idx]:
+            with cols[i]:
                 st.markdown(f"""
                 <div class="card" style="text-align:center; padding:15px; border-top: 4px solid {d_col};">
                     <div style="color:#aaa; font-size:1.1rem; font-weight:600; text-transform:uppercase;">{d_name}</div>
@@ -409,8 +385,9 @@ with tab_compare:
             textposition='outside',
             textfont_size=14,
             textfont_color='white',
-            width=0.35
+            width=0.35  # Controls the width of bars (reduced to remove big gaps)
         )
+        # FIX: Added bargap and adjusted margin/height to look cleaner
         fig_comp.update_layout(
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
@@ -419,7 +396,9 @@ with tab_compare:
             yaxis=dict(title=None),
             margin=dict(l=0, r=50, t=20, b=0),
             uniformtext_minsize=12, 
-            uniformtext_mode='hide'
+            uniformtext_mode='hide',
+            bargap=0.1, # Reduces space between bars
+            height=250  # Compact height to fit the card better
         )
         st.plotly_chart(fig_comp, use_container_width=True)
         
@@ -461,3 +440,4 @@ with tab_data:
                 mime="text/csv",
                 use_container_width=True
             )
+            
